@@ -354,7 +354,7 @@ const pct=(a,b)=>b===0?0:Math.min(100,Math.round(a/b*100));
 const barC=(s,b)=>{const p=pct(s,b);return p>=100?'#EF4444':p>=80?'#F59E0B':'#10B981';};
 const tod=()=>new Date().toISOString().split('T')[0];
 
-// ── Default categories (revised) ──
+// ── Default categories ──
 const DEFAULT_CATS=[
   {id:'mc1',name:'餐饮',budget:2500,color:COLS[0],icon:'🍜',subcats:[{id:'mc1s1',name:'正餐',icon:'🍽️'},{id:'mc1s2',name:'外卖',icon:'🛵'},{id:'mc1s3',name:'咖啡',icon:'☕'},{id:'mc1s4',name:'甜品烘焙',icon:'🧁'},{id:'mc1s5',name:'其他',icon:'🍴'}]},
   {id:'mc2',name:'交通',budget:800,color:COLS[1],icon:'🚇',subcats:[{id:'mc2s1',name:'公共交通',icon:'🚌'},{id:'mc2s2',name:'打车',icon:'🚖'},{id:'mc2s3',name:'高铁',icon:'🚄'},{id:'mc2s4',name:'飞机',icon:'✈️'},{id:'mc2s5',name:'油费·充能',icon:'⛽'},{id:'mc2s6',name:'养车',icon:'🚗'},{id:'mc2s7',name:'其他',icon:'🗺️'}]},
@@ -392,7 +392,6 @@ let V={
   _detailCat:null,_editCat:null,_editSub:null,_subFor:null,_subcatCat:null,
 };
 
-// Load saved data
 (function loadData(){
   try{
     const saved=localStorage.getItem('bgv');
@@ -436,7 +435,6 @@ function exportCSV(){
 function exportJSON(){return JSON.stringify({totalBudget:V.totalBudget,mainCats:V.mainCats,mainRecs:V.mainRecs,subs:V.subs},null,2);}
 function dlFile(c,n,t){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([c],{type:t}));a.download=n;a.click();}
 
-// ── Budget alert check ──
 function checkAlerts(){
   if(!P.reminderOn)return;
   const cm=V.month,cy=V.year;
@@ -699,7 +697,7 @@ function renderRecordPage(){
   document.getElementById('rec-inner').innerHTML=h;
 }
 function rpSelCat(id){R.catId=id;R.subCatId=null;renderRecordPage();}
-function rpSelSub(id){R.subCatId=id;document.querySelectorAll('.rp-sub-it').forEach(el=>{el.classList.toggle('on',(id===''&&el.getAttribute('onclick').includes("''"))||(id&&el.getAttribute('onclick').includes(`'${id}'`)));});}
+function rpSelSub(id){R.subCatId=id;document.querySelectorAll('.rp-sub-it').forEach(el=>{el.classList.toggle('on',(id===''&&el.getAttribute('onclick').includes("''"))||(id&&el.getAttribute('onclick').includes("'"+id+"'")));});}
 function npKey(k){
   if(k==='00'){if(R.amtStr&&!R.amtStr.includes('.'))R.amtStr+='00';else if(!R.amtStr)R.amtStr='0';else return;}
   else if(k==='.'){if(!R.amtStr.includes('.'))R.amtStr+='.';}
@@ -741,6 +739,11 @@ function showOverlay(type,arg){
 function closeOverlay(){document.getElementById('ov-bg').style.display='none';V.overlay=null;V._detailCat=null;V._editCat=null;V._editSub=null;renderHome();}
 function ovBgClick(e){if(e.target.id==='ov-bg')closeOverlay();}
 
+// Helper to build onclick for Pro-gated features
+function proGate(actionIfPro, actionIfNot) {
+  return P.proUnlocked ? actionIfPro : actionIfNot;
+}
+
 function renderOverlay(){
   const ov=document.getElementById('ov-content');
   const type=V.overlay,cm=V.month,cy=V.year,{m:pm,y:py}=prevMY(),{m:lym,y:lyy}=prevYMY();
@@ -756,11 +759,9 @@ function renderOverlay(){
     <div class="stat3"><div class="s3c"><div class="s3l">本月</div><div class="s3v" style="color:${barC(tot,cat.budget)}">${fmt(tot)}</div></div><div class="s3c"><div class="s3l">环比上月</div><div class="s3v">${fmtS(totalOf(cat.id,pm,py))}</div><span class="s3d ${md.cls}">${md.txt}</span></div><div class="s3c"><div class="s3l">同比去年</div><div class="s3v">${fmtS(totalOf(cat.id,lym,lyy))}</div><span class="s3d ${yd.cls}">${yd.txt}</span></div></div>
     <div style="height:5px;background:var(--border);border-radius:99px;overflow:hidden;margin-bottom:4px;display:flex;"><div style="width:${pct(dir,cat.budget)}%;background:${barC(tot,cat.budget)};border-radius:99px;"></div>${syn>0?`<div style="width:${Math.min(100-pct(dir,cat.budget),pct(syn,cat.budget))}%;background:${barC(tot,cat.budget)};opacity:.35;border-radius:99px;"></div>`:''}</div>
     <div style="font-size:10px;color:var(--t3);margin-bottom:14px;">${pct(tot,cat.budget)}% 已使用${syn>0?' · 含子账本 '+fmt(syn):''}</div>`;
-    // subcats
     h+=`<div class="dv" style="margin:0 0 10px;"></div><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;"><span style="font-size:10px;font-weight:700;color:var(--t3);letter-spacing:.05em;text-transform:uppercase;">子目录</span><button onclick="showOverlay('subcatmgr','${cat.id}')" style="font-size:11px;font-weight:600;color:var(--blue);border:none;background:none;cursor:pointer;font-family:inherit;">管理</button></div>`;
     if(cat.subcats&&cat.subcats.length){cat.subcats.forEach(sc=>{const scS=byM(V.mainRecs,cm,cy).filter(r=>r.catId===cat.id&&r.subCatId===sc.id).reduce((s,r)=>s+r.amount,0);h+=`<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);"><span style="font-size:13px;">${sc.icon} ${sc.name}</span><span style="font-size:13px;font-weight:600;color:var(--t2);">${fmt(scS)}</span></div>`;});}
     else{h+=`<div style="font-size:12px;color:var(--t3);padding:6px 0 2px;">暂无子目录，点「管理」添加</div>`;}
-    // sub-ledgers
     if(sbs.length){h+=`<div class="dv" style="margin:10px 0;"></div><div style="font-size:10px;font-weight:700;color:var(--t3);letter-spacing:.05em;text-transform:uppercase;margin-bottom:8px;">子账本</div>`;sbs.forEach(sb=>{const sa=subSpent(sb,cm,cy);h+=`<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border);"><div style="display:flex;align-items:center;gap:7px;"><div style="width:8px;height:8px;border-radius:50%;background:${sb.color};"></div><span style="font-size:13px;font-weight:600;">${sb.icon} ${sb.name}</span></div><div style="display:flex;align-items:center;gap:8px;"><span style="font-size:13px;font-weight:700;color:${sb.color}">${fmt(sa)}</span><button class="sub-enter-btn" onclick="enterSub('${sb.id}')">进入 →</button><button class="sub-del-btn" onclick="delSub('${sb.id}')">×</button></div></div>`;});h+=`<button onclick="showOverlay('newsub','${cat.id}')" style="display:flex;align-items:center;gap:5px;margin-top:8px;font-size:12px;font-weight:600;color:var(--blue);background:none;border:none;cursor:pointer;font-family:inherit;padding:3px 0;">＋ 新建子账本</button>`;}
     else{h+=`<div class="dv" style="margin:10px 0;"></div><button class="btn-g" onclick="showOverlay('newsub','${cat.id}')">＋ 新建子账本</button>`;}
     if(catRecs.length){h+=`<div class="dv" style="margin:10px 0 8px;"></div><div style="font-size:10px;font-weight:700;color:var(--t3);letter-spacing:.05em;text-transform:uppercase;margin-bottom:8px;">本月直接记录</div>`;catRecs.sort((a,b)=>b.date.localeCompare(a.date)).forEach(rec=>{const sc=cat.subcats&&rec.subCatId?cat.subcats.find(s=>s.id===rec.subCatId):null;h+=`<div style="display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px solid var(--border);"><div style="width:30px;height:30px;border-radius:8px;background:${cat.color}22;display:flex;align-items:center;justify-content:center;font-size:13px;">${cat.icon}</div><div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:600;">${rec.desc||sc?.name||'（无描述）'}</div><div style="font-size:10px;color:var(--t3);">${rec.date}${sc?' · '+sc.icon+sc.name:''}${rec.loc?' · 📍'+rec.loc:''}</div></div><span style="font-size:13px;font-weight:700;">-${fmt(rec.amount)}</span><button class="sub-del-btn" onclick="delRec('${rec.id}');renderOverlay()">×</button></div>`;});}
@@ -821,7 +822,7 @@ function renderOverlay(){
     if(V.ioTab==='export'){
       h+=`<div class="btn-stack" style="margin-bottom:12px;">
         <button class="btn-g" onclick="dlFile(exportCSV(),'记录.csv','text/csv')">📄 导出 CSV <span style="font-size:10px;color:var(--green);font-weight:700;">免费</span></button>
-        <button class="btn-g" onclick="${P.proUnlocked?'dlFile(exportJSON(),\\'备份.json\\',\\'application/json\\')':'showOverlay(\\'pro\\')'}">📦 导出 JSON（含子账本）<span style="font-size:10px;color:${P.proUnlocked?'var(--green)':'var(--amber)'};font-weight:700;margin-left:4px;">${P.proUnlocked?'已解锁':'Pro'}</span></button>
+        <button class="btn-g" onclick="${proGate("dlFile(exportJSON(),'备份.json','application/json')","showOverlay('pro')")}">📦 导出 JSON（含子账本）<span style="font-size:10px;color:${P.proUnlocked?'var(--green)':'var(--amber)'};font-weight:700;margin-left:4px;">${P.proUnlocked?'已解锁':'Pro'}</span></button>
       </div><div style="font-size:10px;color:var(--t3);margin-bottom:5px;">CSV 预览</div><textarea class="io-area" readonly>${exportCSV()}</textarea>`;
     } else {
       if(!P.proUnlocked){h+=`<div style="text-align:center;padding:20px 0;"><div style="font-size:36px;margin-bottom:10px;">🔒</div><div style="font-size:15px;font-weight:700;margin-bottom:6px;">导入是 Pro 功能</div><div style="font-size:12px;color:var(--t3);margin-bottom:16px;">升级后可从备份 JSON 恢复数据</div><button class="btn-p" onclick="showOverlay('pro')">解锁 Pro</button></div>`;}
@@ -879,12 +880,12 @@ function renderOverlay(){
     const url=window.location.href;
     h+=`<div class="ov-hdr"><div class="ov-title">分享应用</div>${X}</div>
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:8px 0 20px;">
-    ${[['💬','微信好友',`navigator.share?navigator.share({title:'预算管家',text:'推荐你用预算管家管理支出！',url:'${url}'}):alert('请手动复制链接')`],['🟢','朋友圈',`alert('请截图后发布到朋友圈')`],['🐧','QQ',`window.open('https://connect.qq.com/widget/shareqq/index.html?url='+encodeURIComponent('${url}')+'&title='+encodeURIComponent('预算管家'))`],['📕','小红书',`alert('请截图后发布到小红书')`]].map(([ico,n,fn])=>`
-      <div style="display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;" onclick="${fn}">
+    ${[['💬','微信好友'],['🟢','朋友圈'],['🐧','QQ'],['📕','小红书']].map(([ico,n])=>`
+      <div style="display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;" onclick="shareApp('${n}')">
         <div style="width:52px;height:52px;border-radius:14px;background:var(--s2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:26px;">${ico}</div>
         <span style="font-size:11px;color:var(--t2);">${n}</span>
       </div>`).join('')}</div>
-    <div style="background:var(--s2);border-radius:8px;padding:10px 12px;display:flex;align-items:center;gap:8px;"><div style="flex:1;font-size:12px;color:var(--t3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${url}</div><button style="font-size:12px;font-weight:600;color:var(--blue);border:none;background:none;cursor:pointer;font-family:inherit;" onclick="navigator.clipboard.writeText('${url}').then(()=>alert('已复制'))">复制</button></div>`;
+    <div style="background:var(--s2);border-radius:8px;padding:10px 12px;display:flex;align-items:center;gap:8px;"><div style="flex:1;font-size:12px;color:var(--t3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${url}</div><button style="font-size:12px;font-weight:600;color:var(--blue);border:none;background:none;cursor:pointer;font-family:inherit;" onclick="navigator.clipboard.writeText(window.location.href).then(()=>alert('已复制'))">复制</button></div>`;
   }
 
   else if(type==='help'){
@@ -923,12 +924,22 @@ function renderOverlay(){
   if(type==='subcatmgr')renderSCRows();
 }
 
+function shareApp(platform){
+  const url=window.location.href;
+  if(platform==='微信好友'&&navigator.share){navigator.share({title:'预算管家',text:'推荐你用预算管家管理支出！',url:url}).catch(()=>{});}
+  else if(platform==='朋友圈'){alert('请截图后发布到朋友圈');}
+  else if(platform==='QQ'){window.open('https://connect.qq.com/widget/shareqq/index.html?url='+encodeURIComponent(url)+'&title='+encodeURIComponent('预算管家'));}
+  else if(platform==='小红书'){alert('请截图后发布到小红书');}
+  else{alert('请手动复制链接分享');}
+}
+
 // ── Mine page ──
 function renderMine(){
   const cm=new Date().getMonth(),cy=new Date().getFullYear();
   const totalSpent=grandTotal(cm,cy);
   const yearRecs=V.mainRecs.filter(r=>new Date(r.date).getFullYear()===cy).length;
   const nodeStr=P.reminderNodes.map(n=>n+'%').join('、')||'未设置';
+  const proIO=P.proUnlocked?"showOverlay('io')":"showOverlay('pro')";
   document.getElementById('mine-content').innerHTML=`
   <div class="mine-hdr"><div class="mine-av-row">
     <div class="mine-av" onclick="showOverlay('editProfile')">${P.name?P.name.slice(0,1):'🙂'}</div>
@@ -943,8 +954,8 @@ function renderMine(){
   <div class="mine-sec"><div class="mine-sec-ttl">账本管理</div><div class="mine-grp">
     <div class="mrow" onclick="switchTab('home');setTimeout(()=>showOverlay('catmgr'),100)"><div class="mrow-ico">⚙️</div><div class="mrow-body"><div class="mrow-t">管理分类与预算</div></div><div class="mrow-r"><span class="mrow-arr">›</span></div></div>
     <div class="mrow" onclick="showOverlay('io')"><div class="mrow-ico">📄</div><div class="mrow-body"><div class="mrow-t">导出 CSV</div><div class="mrow-s">免费 · 可在 Excel 打开</div></div><div class="mrow-r"><span class="mbadge b-free">免费</span></div></div>
-    <div class="mrow" onclick="${P.proUnlocked?'showOverlay(\\'io\\')':'showOverlay(\\'pro\\')'}"><div class="mrow-ico">📦</div><div class="mrow-body"><div class="mrow-t">导出完整备份 JSON</div><div class="mrow-s">含子账本 · 用于完整恢复</div></div><div class="mrow-r"><span class="mbadge ${P.proUnlocked?'b-free':'b-pro'}">${P.proUnlocked?'已解锁':'Pro'}</span><span class="mrow-arr">›</span></div></div>
-    <div class="mrow" onclick="${P.proUnlocked?'showOverlay(\\'io\\')':'showOverlay(\\'pro\\')'}"><div class="mrow-ico">📥</div><div class="mrow-body"><div class="mrow-t">导入账本</div><div class="mrow-s">从备份 JSON 恢复数据</div></div><div class="mrow-r"><span class="mbadge ${P.proUnlocked?'b-free':'b-pro'}">${P.proUnlocked?'已解锁':'Pro'}</span><span class="mrow-arr">›</span></div></div>
+    <div class="mrow" onclick="${proIO}"><div class="mrow-ico">📦</div><div class="mrow-body"><div class="mrow-t">导出完整备份 JSON</div><div class="mrow-s">含子账本 · 用于完整恢复</div></div><div class="mrow-r"><span class="mbadge ${P.proUnlocked?'b-free':'b-pro'}">${P.proUnlocked?'已解锁':'Pro'}</span><span class="mrow-arr">›</span></div></div>
+    <div class="mrow" onclick="${proIO}"><div class="mrow-ico">📥</div><div class="mrow-body"><div class="mrow-t">导入账本</div><div class="mrow-s">从备份 JSON 恢复数据</div></div><div class="mrow-r"><span class="mbadge ${P.proUnlocked?'b-free':'b-pro'}">${P.proUnlocked?'已解锁':'Pro'}</span><span class="mrow-arr">›</span></div></div>
     <div class="mrow" onclick="showOverlay('analysis')"><div class="mrow-ico">📊</div><div class="mrow-body"><div class="mrow-t">账本分析与预算建议</div><div class="mrow-s">AI 读懂支出，给出调整建议</div></div><div class="mrow-r"><span class="mbadge b-ai">AI</span><span class="mrow-arr">›</span></div></div>
   </div></div>
   <div class="mine-sec"><div class="mine-sec-ttl">预算提醒</div><div class="mine-grp">
